@@ -29,6 +29,11 @@ contract Wallet is Ownable {
         external
         onlyOwner()
     {
+        require(
+            tokenMapping[ticker].tokenAddress == address(0),
+            "Cannot add the same token twice"
+        );
+
         tokenMapping[ticker] = Token(ticker, tokenAddress);
         tokenList.push(ticker);
     }
@@ -42,6 +47,12 @@ contract Wallet is Ownable {
             msg.sender,
             address(this),
             amount
+        );
+    }
+
+    function depositEth() public payable {
+        balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"].add(
+            msg.value
         );
     }
 
