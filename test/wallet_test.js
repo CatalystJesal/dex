@@ -126,7 +126,9 @@ contract("Dex", (accounts) => {
     );
     // let orderBook = [100, 50, 250];
 
-    for (let i = 0; i < orderBook.length; i++) {
+    assert(orderBook.length > 0);
+
+    for (let i = 0; i < orderBook.length - 1; i++) {
       console.log("i: " + i);
       for (let j = i + 1; j < orderBook.length; j++) {
         console.log("j: " + j);
@@ -154,8 +156,9 @@ contract("Dex", (accounts) => {
       Side.SELL
     );
     // let orderBook = [5, 20, 30];
+    assert(orderBook.length > 0);
 
-    for (let i = 0; i < orderBook.length; i++) {
+    for (let i = 0; i < orderBook.length - 1; i++) {
       console.log("i: " + i);
       for (let j = i + 1; j < orderBook.length; j++) {
         console.log("j: " + j);
@@ -163,8 +166,4 @@ contract("Dex", (accounts) => {
       }
     }
   });
-
-  //The user must have ETH deposited such that deposited eth >= buy order value
-  //The user must have enough tokens deposited such that token balance >= sell order amount
-  //The BUY order book should be ordered on price from highest to lowest starting at index 0
 });
