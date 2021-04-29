@@ -57,26 +57,31 @@ contract Dex is Wallet {
             Order(nextOrderId, msg.sender, side, ticker, amount, price)
         );
 
-        //Bubble sort
-        if (side == Side.BUY) {
-            //[10,5,3,7]
-            for (uint256 i = orders.length - 1; i >= 0; i--) {
-                if (orders[i] > orders[i - 1]) {
-                    Order memory order = order[i - 1];
-                    orders[i - 1] = orders[i];
-                    order[i] = temp;
-                }
-            }
-        } else if (side == Side.SELL) {
-            for (uint256 i = orders.length - 1; i >= 0; i--) {
-                if (orders[i] < orders[i - 1]) {
-                    Order memory order = order[i - 1];
-                    orders[i - 1] = orders[i];
-                    order[i] = temp;
-                }
-            }
+        // Bubble sort
+        if (orders.length > 0) {
+            sortOrderBook(orders, side);
         }
 
         nextOrderId++;
+    }
+
+    function sortOrderBook(Order[] storage orders, Side side) private {
+        if (side == Side.BUY) {
+            for (uint256 i = orders.length - 1; i > 0; i--) {
+                if (orders[i].price > orders[i - 1].price) {
+                    Order memory temp = orders[i - 1];
+                    orders[i - 1] = orders[i];
+                    orders[i] = temp;
+                }
+            }
+        } else if (side == Side.SELL) {
+            for (uint256 i = orders.length - 1; i > 0; i--) {
+                if (orders[i].price < orders[i - 1].price) {
+                    Order memory temp = orders[i - 1];
+                    orders[i - 1] = orders[i];
+                    orders[i] = temp;
+                }
+            }
+        }
     }
 }

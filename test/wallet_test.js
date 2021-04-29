@@ -73,14 +73,17 @@ contract("Dex", (accounts) => {
     let link = await Link.deployed();
 
     await truffleAssert.reverts(
-      dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 30, 2)
+      dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 4, 300)
     );
 
-    dex.depositEth({ value: 500 });
+    await link.approve(dex.address, 500);
+    dex.depositEth({ value: web3.utils.toWei("1", "ether") });
+
+    let balance = await dex.balances(accounts[0], web3.utils.fromUtf8("ETH"));
 
     // 0 means BUY
     await truffleAssert.passes(
-      dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 30, 0)
+      dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 3, 100)
     );
   });
 
@@ -89,18 +92,17 @@ contract("Dex", (accounts) => {
     let link = await Link.deployed();
 
     await link.approve(dex.address, 500);
-
     await dex.deposit(100, web3.utils.fromUtf8("LINK"));
 
     // 1 means SELL
     await truffleAssert.passes(
-      dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 50, 4, {
+      dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 2, 400, {
         from: accounts[0],
       })
     );
 
     await truffleAssert.reverts(
-      dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 150, 4, {
+      dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 150, 400, {
         from: accounts[0],
       })
     );
@@ -110,30 +112,27 @@ contract("Dex", (accounts) => {
     let dex = await Dex.deployed();
     let link = await Link.deployed();
 
-    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 50, 4, {
-      from: accounts[0],
-    });
-    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 100, 4, {
-      from: accounts[0],
-    });
-    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 80, 4, {
-      from: accounts[0],
-    });
+    await link.approve(dex.address, 500);
+    await dex.deposit(100, web3.utils.fromUtf8("LINK"));
+
+    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 10, 100);
+    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 6, 500);
+    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.BUY, 5, 300);
 
     let orderBook = await dex.getOrderBook(
       web3.utils.fromUtf8("LINK"),
       Side.BUY
     );
+
     // let orderBook = [100, 50, 250];
 
     assert(orderBook.length > 0);
 
     for (let i = 0; i < orderBook.length - 1; i++) {
-      console.log("i: " + i);
-      for (let j = i + 1; j < orderBook.length; j++) {
-        console.log("j: " + j);
-        assert(orderBook[i] > orderBook[j]);
-      }
+      assert(
+        orderBook[i].price >= orderBook[i + 1].price,
+        "BUY order book isn't ordered"
+      );
     }
   });
 
@@ -141,13 +140,16 @@ contract("Dex", (accounts) => {
     let dex = await Dex.deployed();
     let link = await Link.deployed();
 
-    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 10, 4, {
+    await link.approve(dex.address, 500);
+    await dex.deposit(100, web3.utils.fromUtf8("LINK"));
+
+    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 10, 200, {
       from: accounts[0],
     });
-    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 20, 4, {
+    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 20, 400, {
       from: accounts[0],
     });
-    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 5, 4, {
+    dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 5, 300, {
       from: accounts[0],
     });
 
@@ -159,11 +161,10 @@ contract("Dex", (accounts) => {
     assert(orderBook.length > 0);
 
     for (let i = 0; i < orderBook.length - 1; i++) {
-      console.log("i: " + i);
-      for (let j = i + 1; j < orderBook.length; j++) {
-        console.log("j: " + j);
-        assert(orderBook[i] < orderBook[j]);
-      }
+      assert(
+        orderBook[i].price <= orderBook[i + 1].price,
+        "SELL order book isn't ordered"
+      );
     }
   });
 });
