@@ -22,12 +22,22 @@ contract Dex is Wallet {
 
     mapping(bytes32 => mapping(uint256 => Order[])) public orderBook;
 
+    mapping(bytes32 => mapping(uint256 => Order[])) public marketOrders;
+
     function getOrderBook(bytes32 ticker, Side side)
         public
         view
         returns (Order[] memory)
     {
         return orderBook[ticker][uint256(side)];
+    }
+
+    function getMarketOrders(bytes32 ticker, Side side)
+        public
+        view
+        returns (Order[] memory)
+    {
+        return marketOrders[ticker][uint256(side)];
     }
 
     function createLimitOrder(
@@ -65,6 +75,30 @@ contract Dex is Wallet {
         nextOrderId++;
     }
 
+    function createMarketOrder(
+        bytes32 ticker,
+        Side side,
+        uint256 amount
+    ) public {
+        if (side == Side.SELL) {
+            require(
+                amount <= balances[msg.sender][ticker],
+                "You do not have enough tokens"
+            );
+        } else if (side == Side.BUY) {
+            //will need to loop through to ch
+        }
+        //32
+        //[20, 10, 5]
+        //1) if the person is putting in a SELL order look inside BUY order side, vice versa
+        //2) temp_amount = amount
+        //3) (if SELL) while (temp_amount > 0 and currentOrderIndex < orders.length)
+        //4) temp_amount -= orderbook[ticker][BUY][counter].amount; orderbook[ticker][BUY][counter].amount -= temp_amount
+        //4.1) if(orderbook[ticker][BUY][counter].amount == 0) status = filled
+        //4) while (amount - orderbook[ticker][BUY][counter].amount > 0 and currentOrderIndex < orders.length) go to the next Order[] in the list and repeat 2) and 3)  )
+        //5) Now we must take the price of
+    }
+
     function sortOrderBook(Order[] storage orders, Side side) private {
         if (side == Side.BUY) {
             for (uint256 i = orders.length - 1; i > 0; i--) {
@@ -84,4 +118,6 @@ contract Dex is Wallet {
             }
         }
     }
+
+    function isBuyable(bytes32 ticker, uint256 amount) public {}
 }
