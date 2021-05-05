@@ -16,13 +16,12 @@ contract Dex is Wallet {
         bytes32 ticker;
         uint256 amount;
         uint256 price;
+        uint256 filled;
     }
 
     uint256 public nextOrderId = 0;
 
     mapping(bytes32 => mapping(uint256 => Order[])) public orderBook;
-
-    mapping(bytes32 => mapping(uint256 => Order[])) public marketOrders;
 
     function getOrderBook(bytes32 ticker, Side side)
         public
@@ -30,14 +29,6 @@ contract Dex is Wallet {
         returns (Order[] memory)
     {
         return orderBook[ticker][uint256(side)];
-    }
-
-    function getMarketOrders(bytes32 ticker, Side side)
-        public
-        view
-        returns (Order[] memory)
-    {
-        return marketOrders[ticker][uint256(side)];
     }
 
     function createLimitOrder(
@@ -64,7 +55,7 @@ contract Dex is Wallet {
 
         Order[] storage orders = orderBook[ticker][uint256(side)];
         orders.push(
-            Order(nextOrderId, msg.sender, side, ticker, amount, price)
+            Order(nextOrderId, msg.sender, side, ticker, amount, price, 0)
         );
 
         // Bubble sort
@@ -80,23 +71,112 @@ contract Dex is Wallet {
         Side side,
         uint256 amount
     ) public {
-        if (side == Side.SELL) {
+        uint256 orderBookSide;
+        if (side == Side.BUY) {
+            orderBookSide = 1;
+        } else if (side == Side.SELL) {
             require(
                 amount <= balances[msg.sender][ticker],
                 "You do not have enough tokens"
             );
-        } else if (side == Side.BUY) {
-            //will need to loop through to ch
+            orderBookSide = 0;
         }
-        //32
-        //[20, 10, 5]
-        //1) if the person is putting in a SELL order look inside BUY order side, vice versa
-        //2) temp_amount = amount
-        //3) (if SELL) while (temp_amount > 0 and currentOrderIndex < orders.length)
-        //4) temp_amount -= orderbook[ticker][BUY][counter].amount; orderbook[ticker][BUY][counter].amount -= temp_amount
-        //4.1) if(orderbook[ticker][BUY][counter].amount == 0) status = filled
-        //4) while (amount - orderbook[ticker][BUY][counter].amount > 0 and currentOrderIndex < orders.length) go to the next Order[] in the list and repeat 2) and 3)  )
-        //5) Now we must take the price of
+
+        Order[] storage orders = orderBook[ticker][orderBookSide];
+
+        uint256 totalFilled;
+
+        for (uint256 i = 0; i < orders.length && totalFilled < amount; i++) {
+            //How much can we fill from order[i]
+            uint256 limitOrderAmount = orders[i].amount.sub(orders[i].filled);
+            uint256 remaining = amount.sub(totalFilled);
+            uint256 cost = 0;
+            //e.g. 10 >= 4
+            if (remaining >= limitOrderAmount) {
+                cost = cost.add(orders[i].price.mul(limitOrderAmount));
+                totalFilled = totalFilled.add(limitOrderAmount);
+                orders[i].filled = orders[i].filled.add(limitOrderAmount);
+                if (side == Side.BUY) {
+                    require(
+                        balances[msg.sender]["ETH"] >= cost,
+                        "Insufficient ETH balance to place this market order"
+                    );
+                    balances[orders[i].trader][ticker] = balances[
+                        orders[i].trader
+                    ][ticker]
+                        .sub(limitOrderAmount);
+                    balances[msg.sender][ticker] = balances[msg.sender][ticker]
+                        .add(limitOrderAmount);
+                    balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
+                        .sub(cost);
+                    balances[orders[i].trader]["ETH"] = balances[
+                        orders[i].trader
+                    ]["ETH"]
+                        .add(cost);
+                } else if (side == Side.SELL) {
+                    balances[msg.sender][ticker] = balances[msg.sender][ticker]
+                        .sub(limitOrderAmount);
+                    balances[orders[i].trader][ticker] = balances[
+                        orders[i].trader
+                    ][ticker]
+                        .add(limitOrderAmount);
+                    balances[orders[i].trader]["ETH"] = balances[
+                        orders[i].trader
+                    ]["ETH"]
+                        .sub(cost);
+                    balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
+                        .add(cost);
+                }
+            }
+            //e.g. 4 < 10
+            else if (remaining < limitOrderAmount) {
+                cost = cost.add(orders[i].price.mul(remaining));
+                totalFilled = totalFilled.add(remaining);
+                orders[i].filled = orders[i].filled.add(remaining);
+                if (side == Side.BUY) {
+                    require(
+                        balances[msg.sender]["ETH"] >= cost,
+                        "Insufficient ETH balance to place this market order"
+                    );
+                    balances[orders[i].trader][ticker] = balances[
+                        orders[i].trader
+                    ][ticker]
+                        .sub(remaining);
+                    balances[msg.sender][ticker] = balances[msg.sender][ticker]
+                        .add(remaining);
+                    balances[orders[i].trader]["ETH"] = balances[
+                        orders[i].trader
+                    ]["ETH"]
+                        .add(cost);
+                    balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
+                        .sub(cost);
+                } else if (side == Side.SELL) {
+                    balances[msg.sender][ticker] = balances[msg.sender][ticker]
+                        .sub(remaining);
+                    balances[orders[i].trader][ticker] = balances[
+                        orders[i].trader
+                    ][ticker]
+                        .add(remaining);
+                    balances[orders[i].trader]["ETH"] = balances[
+                        orders[i].trader
+                    ]["ETH"]
+                        .sub(cost);
+                    balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
+                        .add(cost);
+                }
+            }
+        }
+
+        //Loop through the orderbook and remove 100% filled orders
+        removeFilledOrders(orders);
+
+        if (orders.length > 0) {
+            if (orderBookSide == 0) {
+                sortOrderBook(orders, side);
+            } else if (orderBookSide == 1) {
+                sortOrderBook(orders, Side.SELL);
+            }
+        }
     }
 
     function sortOrderBook(Order[] storage orders, Side side) private {
@@ -119,5 +199,20 @@ contract Dex is Wallet {
         }
     }
 
-    function isBuyable(bytes32 ticker, uint256 amount) public {}
+    function removeFilledOrders(Order[] storage orders) private {
+        for (uint256 i = 0; i < orders.length; i++) {
+            //[2,3,4,5]
+            if (orders[i].amount == orders[i].filled) {
+                Order memory _order = orders[orders.length - 1];
+                orders[i] = _order;
+                // delete orders[orders.length - 1];
+                orders.pop();
+            }
+        }
+
+        if (orders.length == 1 && orders[0].amount == orders[0].filled) {
+            // delete orders[0];
+            orders.pop();
+        }
+    }
 }
