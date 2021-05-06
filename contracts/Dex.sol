@@ -88,92 +88,82 @@ contract Dex is Wallet {
         for (uint256 i = 0; i < orders.length && totalFilled < amount; i++) {
             uint256 limitOrderAmount = orders[i].amount.sub(orders[i].filled);
             uint256 remaining = amount.sub(totalFilled);
+            uint256 filled = 0;
             uint256 cost = 0;
 
             if (remaining >= limitOrderAmount) {
+                filled = limitOrderAmount;
                 cost = cost.add(orders[i].price.mul(limitOrderAmount));
                 totalFilled = totalFilled.add(limitOrderAmount);
                 orders[i].filled = orders[i].filled.add(limitOrderAmount);
-                if (side == Side.BUY) {
-                    require(
-                        balances[msg.sender]["ETH"] >= cost,
-                        "Insufficient ETH balance to place this market order"
-                    );
-                    balances[orders[i].trader][ticker] = balances[
-                        orders[i].trader
-                    ][ticker]
-                        .sub(limitOrderAmount);
-                    balances[msg.sender][ticker] = balances[msg.sender][ticker]
-                        .add(limitOrderAmount);
-                    balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
-                        .sub(cost);
-                    balances[orders[i].trader]["ETH"] = balances[
-                        orders[i].trader
-                    ]["ETH"]
-                        .add(cost);
-                } else if (side == Side.SELL) {
-                    balances[msg.sender][ticker] = balances[msg.sender][ticker]
-                        .sub(limitOrderAmount);
-                    balances[orders[i].trader][ticker] = balances[
-                        orders[i].trader
-                    ][ticker]
-                        .add(limitOrderAmount);
-                    balances[orders[i].trader]["ETH"] = balances[
-                        orders[i].trader
-                    ]["ETH"]
-                        .sub(cost);
-                    balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
-                        .add(cost);
-                }
             } else if (remaining < limitOrderAmount) {
-                cost = cost.add(orders[i].price.mul(remaining));
-                totalFilled = totalFilled.add(remaining);
-                orders[i].filled = orders[i].filled.add(remaining);
-                if (side == Side.BUY) {
-                    require(
-                        balances[msg.sender]["ETH"] >= cost,
-                        "Insufficient ETH balance to place this market order"
-                    );
-                    balances[orders[i].trader][ticker] = balances[
-                        orders[i].trader
-                    ][ticker]
-                        .sub(remaining);
-                    balances[msg.sender][ticker] = balances[msg.sender][ticker]
-                        .add(remaining);
-                    balances[orders[i].trader]["ETH"] = balances[
-                        orders[i].trader
-                    ]["ETH"]
-                        .add(cost);
-                    balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
-                        .sub(cost);
-                } else if (side == Side.SELL) {
-                    balances[msg.sender][ticker] = balances[msg.sender][ticker]
-                        .sub(remaining);
-                    balances[orders[i].trader][ticker] = balances[
-                        orders[i].trader
-                    ][ticker]
-                        .add(remaining);
-                    balances[orders[i].trader]["ETH"] = balances[
-                        orders[i].trader
-                    ]["ETH"]
-                        .sub(cost);
-                    balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
-                        .add(cost);
-                }
+                filled = remaining;
+                cost = cost.add(orders[i].price.mul(filled));
+                totalFilled = totalFilled.add(filled);
+                orders[i].filled = orders[i].filled.add(filled);
+            }
+
+            if (side == Side.BUY) {
+                require(
+                    balances[msg.sender]["ETH"] >= cost,
+                    "Insufficient ETH balance to place this market order"
+                );
+                balances[orders[i].trader][ticker] = balances[orders[i].trader][
+                    ticker
+                ]
+                    .sub(filled);
+                balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"].sub(
+                    cost
+                );
+                balances[msg.sender][ticker] = balances[msg.sender][ticker].add(
+                    filled
+                );
+                balances[orders[i].trader]["ETH"] = balances[orders[i].trader][
+                    "ETH"
+                ]
+                    .add(cost);
+            } else {
+                balances[msg.sender][ticker] = balances[msg.sender][ticker].sub(
+                    filled
+                );
+                balances[orders[i].trader]["ETH"] = balances[orders[i].trader][
+                    "ETH"
+                ]
+                    .sub(cost);
+                balances[orders[i].trader][ticker] = balances[orders[i].trader][
+                    ticker
+                ]
+                    .add(filled);
+
+                balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"].add(
+                    cost
+                );
             }
         }
 
-        //Loop through the orderbook and remove 100% filled orders
         removeFilledOrders(orders);
 
         if (orders.length > 0) {
-            if (orderBookSide == 0) {
-                sortOrderBook(orders, side);
-            } else if (orderBookSide == 1) {
+            if (side == Side.BUY) {
                 sortOrderBook(orders, Side.SELL);
+            } else if (side == Side.SELL) {
+                sortOrderBook(orders, Side.BUY);
             }
         }
     }
+
+    // function calculateBalances(
+    //     bytes32 ticker,
+    //     Side side,
+    //     uint256 filled,
+    //     uint256 cost,
+    // ) private {
+    //     if (side == Side.BUY) {
+
+    //     } else if (side == Side.SELL) {
+
+    //     }
+    // }
 
     function sortOrderBook(Order[] storage orders, Side side) private {
         if (side == Side.BUY) {
