@@ -288,10 +288,7 @@ contract("Dex", (accounts) => {
     it("should ensure ETH balance is correctly increased for seller's limit order upon BUY market order fulfilment", async () => {
       let dex = await Dex.deployed();
 
-      let sellerBalance = await dex.balances(
-        accounts[1],
-        web3.utils.fromUtf8("ETH")
-      );
+      let balance = await dex.balances(accounts[1], web3.utils.fromUtf8("ETH"));
 
       await dex.createLimitOrder(web3.utils.fromUtf8("LINK"), Side.SELL, 4, 8, {
         from: accounts[1],
@@ -306,12 +303,12 @@ contract("Dex", (accounts) => {
         web3.utils.fromUtf8("ETH")
       );
 
-      assert.equal(sellerBalance.toNumber() + 4 * 8, latestBalance.toNumber());
+      assert.equal(balance.toNumber() + 4 * 8, latestBalance.toNumber());
     });
     it("should ensure token balance is correctly increased for buyer upon market order fulfilment", async () => {
       let dex = await Dex.deployed();
 
-      let buyerBalance = await dex.balances(
+      let balance = await dex.balances(
         accounts[0],
         web3.utils.fromUtf8("LINK")
       );
@@ -329,7 +326,7 @@ contract("Dex", (accounts) => {
         web3.utils.fromUtf8("LINK")
       );
 
-      assert.equal(buyerBalance.toNumber() + 7, latestBalance.toNumber());
+      assert.equal(balance.toNumber() + 7, latestBalance.toNumber());
     });
 
     it("should ensure filled SELL limit orders are removed from the order book", async () => {
