@@ -143,27 +143,12 @@ contract Dex is Wallet {
 
         removeFilledOrders(orders);
 
-        if (orders.length > 0) {
-            if (side == Side.BUY) {
-                sortOrderBook(orders, Side.SELL);
-            } else if (side == Side.SELL) {
-                sortOrderBook(orders, Side.BUY);
-            }
+        if (orders.length > 0 && side == Side.BUY) {
+            sortOrderBook(orders, Side.SELL);
+        } else if (orders.length > 0 && side == Side.SELL) {
+            sortOrderBook(orders, Side.BUY);
         }
     }
-
-    // function calculateBalances(
-    //     bytes32 ticker,
-    //     Side side,
-    //     uint256 filled,
-    //     uint256 cost,
-    // ) private {
-    //     if (side == Side.BUY) {
-
-    //     } else if (side == Side.SELL) {
-
-    //     }
-    // }
 
     function sortOrderBook(Order[] storage orders, Side side) private {
         if (side == Side.BUY) {
