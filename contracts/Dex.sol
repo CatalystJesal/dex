@@ -58,7 +58,6 @@ contract Dex is Wallet {
             Order(nextOrderId, msg.sender, side, ticker, amount, price, 0)
         );
 
-        // Bubble sort
         if (orders.length > 0) {
             sortOrderBook(orders, side);
         }
@@ -87,11 +86,10 @@ contract Dex is Wallet {
         uint256 totalFilled;
 
         for (uint256 i = 0; i < orders.length && totalFilled < amount; i++) {
-            //How much can we fill from order[i]
             uint256 limitOrderAmount = orders[i].amount.sub(orders[i].filled);
             uint256 remaining = amount.sub(totalFilled);
             uint256 cost = 0;
-            //e.g. 10 >= 4
+
             if (remaining >= limitOrderAmount) {
                 cost = cost.add(orders[i].price.mul(limitOrderAmount));
                 totalFilled = totalFilled.add(limitOrderAmount);
@@ -127,9 +125,7 @@ contract Dex is Wallet {
                     balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"]
                         .add(cost);
                 }
-            }
-            //e.g. 4 < 10
-            else if (remaining < limitOrderAmount) {
+            } else if (remaining < limitOrderAmount) {
                 cost = cost.add(orders[i].price.mul(remaining));
                 totalFilled = totalFilled.add(remaining);
                 orders[i].filled = orders[i].filled.add(remaining);
@@ -201,17 +197,14 @@ contract Dex is Wallet {
 
     function removeFilledOrders(Order[] storage orders) private {
         for (uint256 i = 0; i < orders.length; i++) {
-            //[2,3,4,5]
             if (orders[i].amount == orders[i].filled) {
                 Order memory _order = orders[orders.length - 1];
                 orders[i] = _order;
-                // delete orders[orders.length - 1];
                 orders.pop();
             }
         }
 
         if (orders.length == 1 && orders[0].amount == orders[0].filled) {
-            // delete orders[0];
             orders.pop();
         }
     }
